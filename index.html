@@ -1,24 +1,8 @@
-<!doctype html>
-<html lang="ko">
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-
-    <!-- Bootstrap CSS -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css">
-
-    <title>URL 기록 리스트</title>
-  </head>
-  <body>
-    <script type="module">
-  // Import the functions you need from the SDKs you need
+<script type="module">
+  // Firebase SDK import
   import { initializeApp } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-app.js";
-  import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-analytics.js";
-  // TODO: Add SDKs for Firebase products that you want to use
-  // https://firebase.google.com/docs/web/setup#available-libraries
+  import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-firestore.js";
 
-  // Your web app's Firebase configuration
-  // For Firebase JS SDK v7.20.0 and later, measurementId is optional
   const firebaseConfig = {
     apiKey: "AIzaSyA6AJRFDj0H2W6EwGBCNiqk8FLK3K_CaGc",
     authDomain: "link-store-final.firebaseapp.com",
@@ -29,121 +13,71 @@
     measurementId: "G-TD1K7XG1PZ"
   };
 
-  // Initialize Firebase
+  // Firebase 초기화
   const app = initializeApp(firebaseConfig);
-  const analytics = getAnalytics(app);
+  const db = getFirestore(app);
+
+  // Firestore 연동 함수
+  async function loadSavedUrls() {
+    const querySnapshot = await getDocs(collection(db, "urls"));
+    const list = document.getElementById('urlList');
+    list.innerHTML = '';
+    let index = 0;
+    querySnapshot.forEach((docSnap) => {
+      addUrlToList(docSnap.data().url, index, docSnap.id);
+      index++;
+    });
+  }
+
+  async function addLink() {
+    const input = document.getElementById('urlInput');
+    const newUrl = input.value.trim();
+    if (!newUrl) return alert('URL을 입력해주세요.');
+
+    await addDoc(collection(db, "urls"), { url: newUrl });
+    input.value = '';
+    await loadSavedUrls();
+  }
+
+  async function deleteSelectedLinks() {
+    const list = document.getElementById('urlList');
+    const checkboxes = list.querySelectorAll('input[type="checkbox"]:checked');
+    if (checkboxes.length === 0) return alert('삭제할 URL을 선택해주세요.');
+
+    for (const cb of checkboxes) {
+      const docId = cb.dataset.docid;
+      await deleteDoc(doc(db, "urls", docId));
+    }
+    await loadSavedUrls();
+  }
+
+  function clearAllLinks() {
+    if (!confirm('모든 URL을 삭제하시겠습니까?')) return;
+    const list = document.getElementById('urlList');
+    list.innerHTML = '';
+  }
+
+  // 리스트 아이템 생성
+  function addUrlToList(url, index, docId) {
+    const list = document.getElementById('urlList');
+    const listItem = document.createElement('li');
+    listItem.className = 'list-group-item d-flex align-items-center';
+
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.className = 'mr-2';
+    checkbox.dataset.docid = docId;
+
+    const link = document.createElement('a');
+    link.href = url;
+    link.target = '_blank';
+    link.textContent = `${index + 1}번: ${url}`;
+
+    listItem.appendChild(checkbox);
+    listItem.appendChild(link);
+    list.appendChild(listItem);
+  }
+
+  // 페이지 로드시 불러오기
+  document.addEventListener('DOMContentLoaded', loadSavedUrls);
 </script>
-
-    <nav class="navbar navbar-light bg-light">
-      <a class="navbar-brand" href="#">URL 기록 page</a>
-
-      <!-- 입력 폼 -->
-      <form class="form-inline" onsubmit="event.preventDefault(); addLink();">
-        <input class="form-control mr-sm-2" type="url" id="urlInput" placeholder="URL 입력" aria-label="add">
-        <button class="btn btn-outline-success my-2 my-sm-0" type="submit">add</button>
-      </form>
-    </nav>
-
-    <div class="container mt-4">
-        <h3>입력된 URL 목록</h3>
-        <ul id="urlList" class="list-group mb-3">
-            <!-- URL 기록이 여기에 표시됩니다 -->
-        </ul>
-        <button class="btn btn-warning mr-2" onclick="deleteSelectedLinks()">선택 삭제</button>
-        <button class="btn btn-danger" onclick="clearAllLinks()">모두 지우기</button>
-    </div>
-
-    <!-- JS -->
-    <script>
-        document.addEventListener('DOMContentLoaded', loadSavedUrls);
-
-        function loadSavedUrls() {
-            const saved = JSON.parse(localStorage.getItem('savedUrls') || '[]');
-            saved.forEach((url, index) => addUrlToList(url, index));
-        }
-
-        function addLink() {
-            const input = document.getElementById('urlInput');
-            const newUrl = input.value.trim();
-            if (!newUrl) {
-                alert('URL을 입력해주세요.');
-                return;
-            }
-
-            const saved = JSON.parse(localStorage.getItem('savedUrls') || '[]');
-            saved.push(newUrl);
-            localStorage.setItem('savedUrls', JSON.stringify(saved));
-
-            addUrlToList(newUrl, saved.length - 1);
-            input.value = '';
-        }
-
-        function addUrlToList(url, index) {
-            const list = document.getElementById('urlList');
-            const listItem = document.createElement('li');
-            listItem.className = 'list-group-item d-flex align-items-center';
-            listItem.dataset.index = index; // 삭제용 인덱스 저장
-
-            // 체크박스 추가
-            const checkbox = document.createElement('input');
-            checkbox.type = 'checkbox';
-            checkbox.className = 'mr-2';
-
-            // 링크 생성
-            const link = document.createElement('a');
-            link.href = url;
-            link.target = '_blank';
-            link.textContent = `${index + 1}번: ${url}`;
-
-            listItem.appendChild(checkbox);
-            listItem.appendChild(link);
-            list.appendChild(listItem);
-        }
-
-        function deleteSelectedLinks() {
-            const list = document.getElementById('urlList');
-            const checkboxes = list.querySelectorAll('input[type="checkbox"]:checked');
-
-            if (checkboxes.length === 0) {
-                alert('삭제할 URL을 선택해주세요.');
-                return;
-            }
-
-            if (!confirm('선택한 URL을 삭제하시겠습니까?')) return;
-
-            // 현재 저장된 URL 불러오기
-            let saved = JSON.parse(localStorage.getItem('savedUrls') || '[]');
-
-            // 체크된 항목 제거
-            const indexesToDelete = Array.from(checkboxes).map(cb => 
-                parseInt(cb.parentElement.dataset.index)
-            );
-
-            // index 기준으로 필터링
-            saved = saved.filter((_, idx) => !indexesToDelete.includes(idx));
-
-            // 다시 저장
-            localStorage.setItem('savedUrls', JSON.stringify(saved));
-
-            // 리스트 갱신
-            renderUrlList();
-        }
-
-        function clearAllLinks() {
-            if (!confirm('모든 저장된 URL을 삭제하시겠습니까?')) return;
-            localStorage.removeItem('savedUrls');
-            document.getElementById('urlList').innerHTML = '';
-        }
-
-        function renderUrlList() {
-            const list = document.getElementById('urlList');
-            list.innerHTML = '';
-            const saved = JSON.parse(localStorage.getItem('savedUrls') || '[]');
-            saved.forEach((url, index) => addUrlToList(url, index));
-        }
-    </script>
-
-  </body>
-  
-</html>
-

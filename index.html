@@ -1,124 +1,234 @@
 <!doctype html>
 <html lang="ko">
   <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-
-    <!-- Bootstrap CSS -->
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>URL 기록 리스트 (Firebase Firestore)</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css">
-
-    <title>URL 기록 리스트</title>
+    <style>
+      body { padding-top: 1rem; }
+      .signed-in { display: none; }
+    </style>
   </head>
   <body>
-
     <nav class="navbar navbar-light bg-light">
       <a class="navbar-brand" href="#">URL 기록 page</a>
-
-      <!-- 입력 폼 -->
-      <form class="form-inline" onsubmit="event.preventDefault(); addLink();">
-        <input class="form-control mr-sm-2" type="url" id="urlInput" placeholder="URL 입력" aria-label="add">
-        <button class="btn btn-outline-success my-2 my-sm-0" type="submit">add</button>
-      </form>
+      <div id="authArea">
+        <button id="signInBtn" class="btn btn-outline-primary btn-sm">Google로 로그인</button>
+        <button id="signOutBtn" class="btn btn-outline-secondary btn-sm" style="display:none;">로그아웃</button>
+      </div>
     </nav>
 
     <div class="container mt-4">
-        <h3>입력된 URL 목록</h3>
-        <ul id="urlList" class="list-group mb-3">
-            <!-- URL 기록이 여기에 표시됩니다 -->
-        </ul>
+      <div id="userInfo" class="mb-3"></div>
+
+      <div class="signed-in">
+        <form id="addForm" class="form-inline mb-3" onsubmit="event.preventDefault(); addLink();">
+          <input class="form-control mr-2" type="url" id="urlInput" placeholder="URL 입력 (https://...)" style="width:70%" required>
+          <button class="btn btn-success" type="submit">Add</button>
+        </form>
+
+        <h5>입력된 URL 목록</h5>
+        <ul id="urlList" class="list-group mb-3"></ul>
+
         <button class="btn btn-warning mr-2" onclick="deleteSelectedLinks()">선택 삭제</button>
         <button class="btn btn-danger" onclick="clearAllLinks()">모두 지우기</button>
+      </div>
+
+      <div class="not-signed-in">
+        <p class="text-muted">로그인이 필요합니다. Google로 로그인해 주세요.</p>
+      </div>
     </div>
 
-    <!-- JS -->
-    <script>
-        document.addEventListener('DOMContentLoaded', loadSavedUrls);
+    <!-- Firebase 및 앱 코드 -->
+    <script type="module">
+      // Firebase 모듈 (v12 이상, 모듈 방식)
+      import { initializeApp } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-app.js";
+      import {
+        getFirestore, collection, addDoc, doc, deleteDoc,
+        onSnapshot, query, where, orderBy, serverTimestamp, writeBatch, getDocs
+      } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-firestore.js";
+      import {
+        getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged
+      } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-auth.js";
 
-        function loadSavedUrls() {
-            const saved = JSON.parse(localStorage.getItem('savedUrls') || '[]');
-            saved.forEach((url, index) => addUrlToList(url, index));
+      // --- 여기에 Firebase 콘솔에서 받은 설정을 넣으세요 ---
+      const firebaseConfig = {
+        apiKey: "AIzaSyA6AJRFDj0H2W6EwGBCNiqk8FLK3K_CaGc",
+        authDomain: "link-store-final.firebaseapp.com",
+        projectId: "link-store-final",
+        storageBucket: "link-store-final.appspot.com", // <- 콘솔 값으로 교체
+        messagingSenderId: "215371737635",
+        appId: "1:215371737635:web:8a80e3401fa9881c29df96",
+        measurementId: "G-TD1K7XG1PZ"
+      };
+
+      const app = initializeApp(firebaseConfig);
+      const db = getFirestore(app);
+      const auth = getAuth(app);
+      const provider = new GoogleAuthProvider();
+
+      // DOM
+      const signInBtn = document.getElementById('signInBtn');
+      const signOutBtn = document.getElementById('signOutBtn');
+      const userInfo = document.getElementById('userInfo');
+      const signedInArea = document.querySelector('.signed-in');
+      const notSignedInArea = document.querySelector('.not-signed-in');
+      const urlListEl = document.getElementById('urlList');
+
+      let unsubscribeSnapshot = null; // 실시간 리스너 참조
+      let currentUser = null;
+
+      // 로그인 버튼
+      signInBtn.addEventListener('click', async () => {
+        try {
+          await signInWithPopup(auth, provider);
+        } catch (e) {
+          alert('로그인 실패: ' + e.message);
         }
+      });
 
-        function addLink() {
-            const input = document.getElementById('urlInput');
-            const newUrl = input.value.trim();
-            if (!newUrl) {
-                alert('URL을 입력해주세요.');
-                return;
-            }
-
-            const saved = JSON.parse(localStorage.getItem('savedUrls') || '[]');
-            saved.push(newUrl);
-            localStorage.setItem('savedUrls', JSON.stringify(saved));
-
-            addUrlToList(newUrl, saved.length - 1);
-            input.value = '';
+      // 로그아웃 버튼
+      signOutBtn.addEventListener('click', async () => {
+        try {
+          await signOut(auth);
+        } catch (e) {
+          alert('로그아웃 실패: ' + e.message);
         }
+      });
 
-        function addUrlToList(url, index) {
-            const list = document.getElementById('urlList');
-            const listItem = document.createElement('li');
-            listItem.className = 'list-group-item d-flex align-items-center';
-            listItem.dataset.index = index; // 삭제용 인덱스 저장
-
-            // 체크박스 추가
-            const checkbox = document.createElement('input');
-            checkbox.type = 'checkbox';
-            checkbox.className = 'mr-2';
-
-            // 링크 생성
-            const link = document.createElement('a');
-            link.href = url;
-            link.target = '_blank';
-            link.textContent = `${index + 1}번: ${url}`;
-
-            listItem.appendChild(checkbox);
-            listItem.appendChild(link);
-            list.appendChild(listItem);
+      // auth 상태 감지
+      onAuthStateChanged(auth, user => {
+        currentUser = user;
+        if (user) {
+          signInBtn.style.display = 'none';
+          signOutBtn.style.display = 'inline-block';
+          userInfo.innerHTML = `<small>로그인: ${user.displayName} (${user.email})</small>`;
+          signedInArea.style.display = '';
+          notSignedInArea.style.display = 'none';
+          startListeningUserUrls(user.uid);
+        } else {
+          signInBtn.style.display = '';
+          signOutBtn.style.display = 'none';
+          userInfo.innerHTML = '';
+          signedInArea.style.display = 'none';
+          notSignedInArea.style.display = '';
+          stopListening();
+          urlListEl.innerHTML = '';
         }
+      });
 
-        function deleteSelectedLinks() {
-            const list = document.getElementById('urlList');
-            const checkboxes = list.querySelectorAll('input[type="checkbox"]:checked');
+      // Firestore 실시간 리스너 시작 (현재 유저의 문서만)
+      function startListeningUserUrls(uid) {
+        stopListening();
+        const q = query(collection(db, 'urls'), where('uid', '==', uid), orderBy('createdAt', 'desc'));
+        unsubscribeSnapshot = onSnapshot(q, snapshot => {
+          urlListEl.innerHTML = '';
+          let i = 0;
+          snapshot.forEach(docSnap => {
+            const data = docSnap.data();
+            addUrlToList(docSnap.id, data.url, i++);
+          });
+        }, err => {
+          console.error('onSnapshot error', err);
+        });
+      }
 
-            if (checkboxes.length === 0) {
-                alert('삭제할 URL을 선택해주세요.');
-                return;
-            }
-
-            if (!confirm('선택한 URL을 삭제하시겠습니까?')) return;
-
-            // 현재 저장된 URL 불러오기
-            let saved = JSON.parse(localStorage.getItem('savedUrls') || '[]');
-
-            // 체크된 항목 제거
-            const indexesToDelete = Array.from(checkboxes).map(cb => 
-                parseInt(cb.parentElement.dataset.index)
-            );
-
-            // index 기준으로 필터링
-            saved = saved.filter((_, idx) => !indexesToDelete.includes(idx));
-
-            // 다시 저장
-            localStorage.setItem('savedUrls', JSON.stringify(saved));
-
-            // 리스트 갱신
-            renderUrlList();
+      function stopListening() {
+        if (unsubscribeSnapshot) {
+          unsubscribeSnapshot();
+          unsubscribeSnapshot = null;
         }
+      }
 
-        function clearAllLinks() {
-            if (!confirm('모든 저장된 URL을 삭제하시겠습니까?')) return;
-            localStorage.removeItem('savedUrls');
-            document.getElementById('urlList').innerHTML = '';
-        }
+      // URL 추가
+      async function addLink() {
+        const input = document.getElementById('urlInput');
+        const url = input.value.trim();
+        if (!url) { alert('URL을 입력해주세요.'); return; }
+        if (!currentUser) { alert('로그인이 필요합니다.'); return; }
 
-        function renderUrlList() {
-            const list = document.getElementById('urlList');
-            list.innerHTML = '';
-            const saved = JSON.parse(localStorage.getItem('savedUrls') || '[]');
-            saved.forEach((url, index) => addUrlToList(url, index));
+        try {
+          await addDoc(collection(db, 'urls'), {
+            url: url,
+            uid: currentUser.uid,
+            createdAt: serverTimestamp()
+          });
+          input.value = '';
+        } catch (e) {
+          alert('저장 실패: ' + e.message);
         }
+      }
+
+      // 리스트에 항목 추가 (DOM)
+      function addUrlToList(docId, url, index) {
+        const li = document.createElement('li');
+        li.className = 'list-group-item d-flex align-items-center';
+
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.className = 'mr-2';
+        checkbox.dataset.docid = docId;
+
+        const a = document.createElement('a');
+        a.href = url;
+        a.target = '_blank';
+        a.textContent = `${index + 1}번: ${url}`;
+        a.style.marginLeft = '8px';
+        a.style.wordBreak = 'break-all';
+
+        const delBtn = document.createElement('button');
+        delBtn.className = 'btn btn-sm btn-outline-danger ml-auto';
+        delBtn.textContent = '삭제';
+        delBtn.addEventListener('click', () => {
+          if (confirm('이 URL을 삭제하시겠습니까?')) {
+            deleteDoc(doc(db, 'urls', docId)).catch(e => alert('삭제 실패: ' + e.message));
+          }
+        });
+
+        li.appendChild(checkbox);
+        li.appendChild(a);
+        li.appendChild(delBtn);
+        urlListEl.appendChild(li);
+      }
+
+      // 선택 삭제
+      async function deleteSelectedLinks() {
+        const checked = Array.from(urlListEl.querySelectorAll('input[type="checkbox"]:checked'));
+        if (checked.length === 0) { alert('삭제할 URL을 선택해주세요.'); return; }
+        if (!confirm('선택한 URL을 삭제하시겠습니까?')) return;
+
+        for (const cb of checked) {
+          const id = cb.dataset.docid;
+          try {
+            await deleteDoc(doc(db, 'urls', id));
+          } catch (e) {
+            console.error('delete error', e);
+          }
+        }
+      }
+
+      // 전체 삭제 (현재 로그인한 사용자의 모든 URL) — 배치로 안전 처리
+      async function clearAllLinks() {
+        if (!currentUser) { alert('로그인이 필요합니다.'); return; }
+        if (!confirm('모든 저장된 URL을 삭제하시겠습니까?')) return;
+
+        try {
+          // 현재 유저의 문서 조회
+          const q = query(collection(db, 'urls'), where('uid', '==', currentUser.uid));
+          const snap = await getDocs(q);
+          const batch = writeBatch(db);
+          snap.forEach(docSnap => batch.delete(doc(db, 'urls', docSnap.id)));
+          await batch.commit();
+        } catch (e) {
+          alert('전체 삭제 실패: ' + e.message);
+        }
+      }
+
+      // 전역으로 노출 (onclick에서 사용)
+      window.addLink = addLink;
+      window.deleteSelectedLinks = deleteSelectedLinks;
+      window.clearAllLinks = clearAllLinks;
     </script>
-
   </body>
 </html>

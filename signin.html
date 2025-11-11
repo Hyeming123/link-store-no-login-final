@@ -1,0 +1,358 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <!-- Required meta tags -->
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/css/bootstrap.min.css" integrity="sha384-xOolHFLEh07PJGoPkLv1IbcEPTNtaed2xpHsD9ESMhqIYd0nLMwNLD69Npy4HI+N" crossorigin="anonymous">
+
+    <title>로그인 - Link Store</title>
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .login-container {
+            background-color: #ffffff;
+            border-radius: 10px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+            padding: 40px;
+            width: 100%;
+            max-width: 400px;
+        }
+
+        .login-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .login-header h1 {
+            font-size: 28px;
+            font-weight: bold;
+            color: #333333;
+            margin-bottom: 10px;
+        }
+
+        .login-header p {
+            color: #666666;
+            font-size: 14px;
+        }
+
+        .form-group label {
+            font-weight: 600;
+            color: #333333;
+            margin-bottom: 8px;
+        }
+
+        .form-control {
+            background-color: #f8f9fa;
+            border: 1px solid #e0e0e0;
+            border-radius: 5px;
+            padding: 12px 15px;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+
+        .form-control:focus {
+            background-color: #ffffff;
+            border-color: #667eea;
+            box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+        }
+
+        .form-control::placeholder {
+            color: #999999;
+        }
+
+        .btn-login {
+            width: 100%;
+            padding: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            border-radius: 5px;
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-top: 10px;
+        }
+
+        .btn-login:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-login:active {
+            transform: translateY(0);
+        }
+
+        .form-check {
+            margin: 15px 0;
+        }
+
+        .form-check-input {
+            cursor: pointer;
+        }
+
+        .form-check-label {
+            cursor: pointer;
+            color: #666666;
+            font-size: 14px;
+            margin-left: 5px;
+        }
+
+        .forgot-password {
+            text-align: right;
+            margin-bottom: 20px;
+        }
+
+        .forgot-password a {
+            color: #667eea;
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .forgot-password a:hover {
+            text-decoration: underline;
+        }
+
+        .signup-link {
+            text-align: center;
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #e0e0e0;
+        }
+
+        .signup-link p {
+            color: #666666;
+            font-size: 14px;
+            margin: 0;
+        }
+
+        .signup-link a {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .signup-link a:hover {
+            text-decoration: underline;
+        }
+
+        .alert {
+            border-radius: 5px;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .spinner-border {
+            width: 30px;
+            height: 30px;
+            color: #667eea;
+        }
+
+        .back-link {
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        .back-link a {
+            color: #667eea;
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .back-link a:hover {
+            text-decoration: underline;
+        }
+
+        .divider {
+            display: flex;
+            align-items: center;
+            margin: 20px 0;
+        }
+
+        .divider::before,
+        .divider::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background-color: #e0e0e0;
+        }
+
+        .divider span {
+            padding: 0 10px;
+            color: #999999;
+            font-size: 12px;
+        }
+
+
+    </style>
+  </head>
+  <body>
+
+    <div class="login-container">
+        <div class="login-header">
+            <h1>🔗 Link Store</h1>
+            <p>로그인하여 시작하세요</p>
+        </div>
+
+        <div id="alertContainer"></div>
+
+        <form id="loginForm" onsubmit="handleLogin(event)">
+            <div class="form-group">
+                <label for="email">이메일</label>
+                <input type="email" class="form-control" id="email" placeholder="your@email.com" required>
+            </div>
+
+            <div class="form-group">
+                <label for="password">비밀번호</label>
+                <input type="password" class="form-control" id="password" placeholder="비밀번호를 입력하세요" required>
+            </div>
+
+            <div class="forgot-password">
+                <a href="#">비밀번호를 잊으셨나요?</a>
+            </div>
+
+            <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="rememberMe">
+                <label class="form-check-label" for="rememberMe">
+                    로그인 상태 유지
+                </label>
+            </div>
+
+            <div class="loading" id="loading">
+                <div class="spinner-border" role="status">
+                    <span class="sr-only">로딩 중...</span>
+                </div>
+            </div>
+
+            <button type="submit" class="btn btn-login" id="loginBtn">로그인</button>
+        </form>
+
+
+
+        <div class="signup-link">
+            <p>계정이 없으신가요? <a href="signup.html">회원가입</a></p>
+        </div>
+
+        <div class="back-link">
+            <a href="index.html">← 메인으로 돌아가기</a>
+        </div>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-app.js";
+        import { getAuth, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-auth.js";
+
+        // Firebase 설정
+        const firebaseConfig = {
+            apiKey: "AIzaSyAsgO9Zu8p3dCA2EBhqy9kgEfyXZZrxwXM",
+            authDomain: "link-store-no-login.firebaseapp.com",
+            projectId: "link-store-no-login",
+            storageBucket: "link-store-no-login.firebasestorage.app",
+            messagingSenderId: "368312230339",
+            appId: "1:368312230339:web:fdb745c5a9c67313789d76",
+            measurementId: "G-YVEX6VVYJ8"
+        };
+
+        // Firebase 초기화
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+
+        // 로그인 함수
+        window.handleLogin = async (event) => {
+            event.preventDefault();
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const rememberMe = document.getElementById('rememberMe').checked;
+            const loginBtn = document.getElementById('loginBtn');
+            const loading = document.getElementById('loading');
+            const alertContainer = document.getElementById('alertContainer');
+
+            // 입력값 검증
+            if (!email || !password) {
+                showAlert('이메일과 비밀번호를 입력해주세요.', 'warning');
+                return;
+            }
+
+            // 로딩 상태 표시
+            loading.style.display = 'block';
+            loginBtn.disabled = true;
+
+            try {
+                const userCredential = await signInWithEmailAndPassword(auth, email, password);
+                
+                // 로그인 성공
+                if (rememberMe) {
+                    localStorage.setItem('rememberMe', 'true');
+                }
+                
+                showAlert('로그인 성공! 잠시 후 메인 페이지로 이동합니다.', 'success');
+                
+                setTimeout(() => {
+                    window.location.href = 'index.html';
+                }, 1500);
+            } catch (error) {
+                loading.style.display = 'none';
+                loginBtn.disabled = false;
+
+                let errorMessage = '로그인에 실패했습니다.';
+                
+                if (error.code === 'auth/user-not-found') {
+                    errorMessage = '등록되지 않은 이메일입니다.';
+                } else if (error.code === 'auth/wrong-password') {
+                    errorMessage = '비밀번호가 올바르지 않습니다.';
+                } else if (error.code === 'auth/invalid-email') {
+                    errorMessage = '유효하지 않은 이메일 형식입니다.';
+                } else if (error.code === 'auth/user-disabled') {
+                    errorMessage = '비활성화된 계정입니다.';
+                } else if (error.code === 'auth/too-many-requests') {
+                    errorMessage = '너무 많은 로그인 시도가 있었습니다. 나중에 다시 시도해주세요.';
+                }
+                
+                showAlert(errorMessage, 'danger');
+            }
+        };
+
+
+
+        // 알림 표시 함수
+        function showAlert(message, type) {
+            const alertContainer = document.getElementById('alertContainer');
+            const alertDiv = document.createElement('div');
+            alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+            alertDiv.role = 'alert';
+            alertDiv.innerHTML = `
+                ${message}
+                <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            `;
+            alertContainer.innerHTML = '';
+            alertContainer.appendChild(alertDiv);
+        }
+    </script>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.slim.min.js" integrity="sha384-DfXdz2htPH0lsSSs5nCTpuj/zy4C+OGpamoFVy38MVBnE+IbbVYUew+OrCXaRkfj" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-Fy6S3B9q64WdZWQUiU+q4/2Lc9npb8tCaSX9FK7E8HnRr0Jz8D6OP9dO5Vg3Q9ct" crossorigin="anonymous"></script>
+
+  </body>
+</html>
